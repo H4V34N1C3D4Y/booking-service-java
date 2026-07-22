@@ -44,6 +44,12 @@ public class Booking {
     @Column(name = "catalog_request_id")
     private UUID catalogRequestId;
 
+    @Column(name = "previous_status")
+    private BookingStatus previousStatus;
+
+    @Column(name = "cancellation_requested_at")
+    private OffsetDateTime cancellationRequestedAt;
+
     /**
      * Factory method для создания нового бронирования с валидацией бизнес-правил
      */
@@ -102,19 +108,50 @@ public class Booking {
     public void cancel(LocalDate currentDate) {
         switch (status) {
             case AWAIT_CONFIRMATION:
-                this.status = BookingStatus.CANCELLED;
+                processCancellation();
                 break;
+
             case CONFIRMED:
-                if (currentDate.isBefore(bookedFrom)) {
-                    this.status = BookingStatus.CANCELLED;
-                } else {
+                if (!currentDate.isBefore(bookedFrom)) {
                     throw new BusinessException("Невозможно отменить начавшееся бронирование");
                 }
+
+                processCancellation();
                 break;
+
             case NONE:
             case CANCELLED:
+            case CANCELLATION_PENDING:
             default:
                 throw new BusinessException("Некорректный статус для отмены");
         }
+    }
+
+    private void processCancellation() {
+        this.previousStatus = this.status;
+        this.status = BookingStatus.CANCELLATION_PENDING;
+        this.cancellationRequestedAt = OffsetDateTime.now();
+    }
+
+    public void completeCancellation() {
+        if (status != BookingStatus.CANCELLATION_PENDING) {
+            throw new BusinessException("Невозможно завершить отмену");
+        }
+
+        this.status = BookingStatus.CANCELLED;
+    }
+
+    public void rollbackCancellation() {
+        if (status != BookingStatus.CANCELLATION_PENDING) {
+            throw new BusinessException("Невозможно откатить отмену");
+        }
+
+        if (previousStatus == null) {
+            throw new BusinessException("Предыдущий статус отсутствует");
+        }
+
+        this.status = previousStatus;
+        this.previousStatus = null;
+        this.cancellationRequestedAt = null;
     }
 }

@@ -153,7 +153,11 @@ public class BookingService {
         log.info("Найдено бронирование: id={}, статус={}. Подтверждаем...",
                 booking.getId(), booking.getStatus());
 
-        booking.confirm();
+        if (booking.getStatus() == BookingStatus.CANCELLATION_PENDING) {
+            booking.completeCancellation();
+        } else {
+            booking.confirm();
+        }
         bookingRepository.save(booking);
 
         log.info("Бронирование успешно подтверждено: id={}, новый статус={}",
@@ -195,5 +199,12 @@ public class BookingService {
     @Transactional
     public void handleError(UUID requestId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
+        Booking booking = bookingRepository
+                .findByCatalogRequestId(requestId)
+                .orElseThrow(() -> new BusinessException("Бронирование с указанным id: '" + requestId + "' не найдено."));
+
+        booking.rollbackCancellation();
+
+        bookingRepository.save(booking);
     }
 }
