@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,4 +53,42 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      */
     @Query("SELECT b.status FROM Booking b WHERE b.id = :id")
     BookingStatus findStatusById(@Param("id") Long id);
+
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.createdAt >= :from
+          AND b.createdAt < :to
+        """)
+    long countByCreatedAtInRange(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
+
+    @Query("""
+        SELECT b.resourceId, COUNT(b)
+        FROM Booking b
+        WHERE b.createdAt >= :from
+          AND b.createdAt < :to
+        GROUP BY b.resourceId
+        ORDER BY COUNT(b) DESC
+        
+        """)
+    List<Object[]> countTopResources(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
+            Pageable pageable
+    );
+
+    @Query("""
+        SELECT b.status, COUNT(b)
+        FROM Booking b
+        WHERE b.createdAt >= :from
+          AND b.createdAt < :to
+        GROUP BY b.status
+        """)
+    List<Object[]> countByStatus(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
+    );
 }
