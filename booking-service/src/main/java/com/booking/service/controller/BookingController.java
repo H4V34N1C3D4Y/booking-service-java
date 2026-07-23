@@ -11,6 +11,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
+import com.booking.service.dto.response.BookingStatsResponse;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.util.List;
 
@@ -73,5 +76,13 @@ public class BookingController {
     @PostMapping("{id}/cancel")
     public void cancel(@PathVariable Long id) {
         bookingService.cancelBooking(id);
+    }
+
+    @GetMapping("/statistics")
+    public BookingStatsResponse getStatistics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo
+    ) {
+        return bookingService.getStatistics(dateFrom, dateTo);
     }
 }

@@ -29,6 +29,9 @@ booking:
     polling:
       interval: 5000
 
+  cancellation:
+    timeout: PT5M
+
 # RabbitMQ Rebus Integration
 rabbitmq:
   rebus:
