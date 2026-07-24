@@ -1,6 +1,8 @@
 package com.booking.service.service;
 
 import com.booking.service.config.CurrentDateTimeProvider;
+import com.booking.service.dto.response.BookingStatsResponse;
+import com.booking.service.dto.response.ResourceStats;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.exception.BusinessException;
@@ -16,7 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -33,6 +39,8 @@ public class BookingService {
     private final BookingEventPublisher bookingEventPublisher;
     private final CurrentDateTimeProvider dateTimeProvider;
 
+    private final BookingHistoryService bookingHistoryService;
+
     // === КОМАНДЫ (Use Cases) ===
 
     /**
@@ -41,6 +49,7 @@ public class BookingService {
      *
      * @return ID созданного бронирования
      */
+    @Transactional
     public Long createBooking(Long userId, Long resourceId, LocalDate bookedFrom, LocalDate bookedTo) {
         Booking booking = Booking.create(userId, resourceId, bookedFrom, bookedTo, dateTimeProvider.utcNow());
 
@@ -48,6 +57,14 @@ public class BookingService {
         booking.setCatalogRequestId(requestId);
 
         booking = bookingRepository.save(booking);
+
+        bookingHistoryService.saveHistory(
+                booking.getId(),
+                null,
+                booking.getStatus(),
+                "BOOKING_CREATED",
+                booking.getUserId().toString()
+        );
 
         CreateBookingJobRequest command = new CreateBookingJobRequest(
                 UUID.randomUUID(),
@@ -69,14 +86,23 @@ public class BookingService {
      *
      * @param id идентификатор бронирования
      */
+    @Transactional
     public void cancelBooking(Long id) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Бронирование с указанным id: '" + id + "' не найдено."));
 
-        LocalDate currentDate = LocalDate.from(dateTimeProvider.utcNow());
-        booking.cancel(currentDate);
+        BookingStatus previousStatus = booking.getStatus();
+        booking.startCancellation(dateTimeProvider.utcNow());
 
         bookingRepository.save(booking);
+
+        bookingHistoryService.saveHistory(
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                "USER_CANCELLATION_REQUEST",
+                booking.getUserId().toString()
+        );
 
         if (booking.getCatalogRequestId() != null) {
             CancelBookingJobByRequestIdRequest command = new CancelBookingJobByRequestIdRequest(
@@ -87,7 +113,8 @@ public class BookingService {
             bookingEventPublisher.publishCancelBookingJob(command);
         }
 
-        log.info("Отменено бронирование с ID: {}", id);
+
+        log.info("Инициирована отмена бронирования, id=: {}", id);
     }
 
     // === ЗАПРОСЫ (Queries) ===
@@ -153,8 +180,25 @@ public class BookingService {
         log.info("Найдено бронирование: id={}, статус={}. Подтверждаем...",
                 booking.getId(), booking.getStatus());
 
+
+        if (booking.getStatus() == BookingStatus.CANCELLATION_PENDING) {
+            log.warn(
+                    "Зафиксировано состояние гонки. Отмена бронирования id={} отложена, Catalog подтвердил бронирование.",
+                    booking.getId()
+            );
+        }
+
+        BookingStatus previousStatus = booking.getStatus();
         booking.confirm();
         bookingRepository.save(booking);
+
+        bookingHistoryService.saveHistory(
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                "BOOKING_CONFIRMED",
+                "System"
+        );
 
         log.info("Бронирование успешно подтверждено: id={}, новый статус={}",
                 booking.getId(), booking.getStatus());
@@ -179,9 +223,18 @@ public class BookingService {
         log.info("Найдено бронирование: id={}, статус={}. Отменяем...",
                 booking.getId(), booking.getStatus());
 
-        LocalDate currentDate = LocalDate.from(dateTimeProvider.utcNow());
-        booking.cancel(currentDate);
+        BookingStatus previousStatus = booking.getStatus();
+        OffsetDateTime now  = dateTimeProvider.utcNow();
+        booking.cancel(now.toLocalDate());
         bookingRepository.save(booking);
+
+        bookingHistoryService.saveHistory(
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                "BOOKING_DENIED",
+                "System"
+        );
 
         log.info("Бронирование успешно отменено: id={}, новый статус={}",
                 booking.getId(), booking.getStatus());
@@ -195,5 +248,91 @@ public class BookingService {
     @Transactional
     public void handleError(UUID requestId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
+        Booking booking = bookingRepository
+                .findByCatalogRequestId(requestId)
+                .orElse(null);
+
+        if (booking == null) {
+            log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            return;
+        }
+
+        BookingStatus previousStatus = booking.getStatus();
+        booking.rollbackCancellation();
+
+        bookingRepository.save(booking);
+
+        bookingHistoryService.saveHistory(
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                "ROLLBACK",
+                "System"
+        );
+
+        log.info("Произошёл успешный откат события: requestId={}, status={}", requestId, booking.getStatus().getValue());
+    }
+
+    @Transactional(readOnly = true)
+    public BookingStatsResponse getStatistics(
+            LocalDate dateFrom,
+            LocalDate dateTo
+    ) {
+        validateDateRange(dateFrom, dateTo);
+
+        OffsetDateTime from = dateFrom
+                .atStartOfDay()
+                .atOffset(ZoneOffset.UTC);
+
+        OffsetDateTime to = dateTo
+                .plusDays(1)
+                .atStartOfDay()
+                .atOffset(ZoneOffset.UTC);
+
+        long totalBookings =
+                bookingRepository.countByCreatedAtInRange(from, to);
+
+        Map<BookingStatus, Long> byStatus = new EnumMap<>(BookingStatus.class);
+
+        byStatus.put(BookingStatus.AWAIT_CONFIRMATION, 0L);
+        byStatus.put(BookingStatus.CONFIRMED, 0L);
+        byStatus.put(BookingStatus.CANCELLATION_PENDING, 0L);
+        byStatus.put(BookingStatus.CANCELLED, 0L);
+
+        bookingRepository.countByStatus(from, to)
+                .forEach(row -> byStatus.put(
+                        (BookingStatus) row[0],
+                        (Long) row[1]
+                ));
+
+        List<ResourceStats> topResources =
+                bookingRepository.countTopResources(
+                                from,
+                                to,
+                                PageRequest.of(0, 5)
+                        )
+                        .stream()
+                        .map(row -> new ResourceStats(
+                                (Long) row[0],
+                                (Long) row[1]
+                        ))
+                        .toList();
+
+        return new BookingStatsResponse(
+                totalBookings,
+                byStatus,
+                topResources
+        );
+    }
+
+    private void validateDateRange(
+            LocalDate dateFrom,
+            LocalDate dateTo
+    ) {
+        if (dateTo.isBefore(dateFrom)) {
+            throw new BusinessException(
+                    "Дата окончания периода не может быть раньше даты начала"
+            );
+        }
     }
 }
