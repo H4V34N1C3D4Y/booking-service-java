@@ -70,7 +70,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="previous_status" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="true"/>
             </column>
             <column name="new_status" type="INTEGER">
                 <constraints nullable="false"/>
@@ -79,11 +79,15 @@
                 <constraints nullable="false"/>
             </column>
             <column name="reason" type="VARCHAR(255)">
-                <constraints nullable="false"/>
+                <constraints nullable="true"/>
             </column>
             <column name="initiator" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
+        <createIndex indexName="idx_booking_history_booking_id"
+                     tableName="booking_history">
+            <column name="booking_id"/>
+        </createIndex>
     </changeSet>
 </databaseChangeLog>

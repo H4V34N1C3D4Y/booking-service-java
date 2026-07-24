@@ -29,7 +29,7 @@ public class BookingHistory {
     @Column(name = "changed_at", nullable = false)
     private OffsetDateTime changedAt;
 
-    @Column(name = "reason", nullable = false)
+    @Column(name = "reason", nullable = true)
     private String reason;
 
     @Column(name = "initiator", nullable = false)

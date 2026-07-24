@@ -26,7 +26,7 @@ public class BookingCancellationRetryScheduler {
     private final CurrentDateTimeProvider dateTimeProvider;
     private final BookingCancellationProperties cancellationProperties;
 
-    @Scheduled(fixedDelayString = "${{booking.cancellation.retry-interval}")
+    @Scheduled(fixedDelayString = "${booking.cancellation.retry-interval}")
     public void retryCancellation() {
         OffsetDateTime threshold =
                 dateTimeProvider.utcNow()

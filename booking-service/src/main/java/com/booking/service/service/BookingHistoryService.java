@@ -20,7 +20,7 @@ public class BookingHistoryService {
 
     private final BookingHistoryRepository bookingHistoryRepository;
     private final CurrentDateTimeProvider dateTimeProvider;
-
+    @Transactional
     public void saveHistory(
             Long bookingId,
             BookingStatus previousStatus,
@@ -38,16 +38,6 @@ public class BookingHistoryService {
         );
 
         bookingHistoryRepository.save(history);
-    }
-
-    private BookingHistoryResponse toResponse(BookingHistory history) {
-        return new BookingHistoryResponse(
-                history.getPreviousStatus(),
-                history.getNewStatus(),
-                history.getChangedAt(),
-                history.getReason(),
-                history.getInitiator()
-        );
     }
 
     @Transactional(readOnly = true)

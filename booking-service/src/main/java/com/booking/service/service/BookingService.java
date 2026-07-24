@@ -49,6 +49,7 @@ public class BookingService {
      *
      * @return ID созданного бронирования
      */
+    @Transactional
     public Long createBooking(Long userId, Long resourceId, LocalDate bookedFrom, LocalDate bookedTo) {
         Booking booking = Booking.create(userId, resourceId, bookedFrom, bookedTo, dateTimeProvider.utcNow());
 
@@ -59,7 +60,7 @@ public class BookingService {
 
         bookingHistoryService.saveHistory(
                 booking.getId(),
-                BookingStatus.NONE,
+                null,
                 booking.getStatus(),
                 "BOOKING_CREATED",
                 booking.getUserId().toString()
@@ -85,6 +86,7 @@ public class BookingService {
      *
      * @param id идентификатор бронирования
      */
+    @Transactional
     public void cancelBooking(Long id) {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Бронирование с указанным id: '" + id + "' не найдено."));

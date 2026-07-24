@@ -2,10 +2,12 @@ package com.booking.service.controller;
 
 import com.booking.service.dto.request.CreateBookingRequest;
 import com.booking.service.dto.request.GetBookingsByFilterRequest;
+import com.booking.service.dto.response.BookingHistoryPageResponse;
 import com.booking.service.dto.response.BookingHistoryResponse;
 import com.booking.service.dto.response.BookingResponse;
 import com.booking.service.dto.response.BookingStatsResponse;
 import com.booking.service.entity.Booking;
+import com.booking.service.entity.BookingHistory;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.service.BookingHistoryService;
 import com.booking.service.service.BookingService;
@@ -34,6 +36,7 @@ public class BookingController {
     private final BookingHistoryService bookingHistoryService;
 
     private final BookingHistoryMapper bookingHistoryMapper;
+
     /**
      * Создать новое бронирование
      */
@@ -93,13 +96,20 @@ public class BookingController {
     }
 
     @GetMapping("{id}/history")
-    public Page<BookingHistoryResponse> getHistory(
+    public BookingHistoryPageResponse getHistory(
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
-    ) {
-        return bookingHistoryService
-                .getHistory(id, page, size)
-                .map(bookingHistoryMapper::toResponse);
+    ){
+        Page<BookingHistory> history = bookingHistoryService.getHistory(id, page, size);
+
+        return new BookingHistoryPageResponse(
+                id,
+                history.getTotalElements(),
+                history.getContent()
+                        .stream()
+                        .map(bookingHistoryMapper::toResponse)
+                        .toList()
+        );
     }
 }
