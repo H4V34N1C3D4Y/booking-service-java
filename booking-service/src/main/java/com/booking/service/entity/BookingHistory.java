@@ -19,7 +19,7 @@ public class BookingHistory {
     private Long bookingId;
 
     @Enumerated(EnumType.ORDINAL)
-    @Column(name = "previous_status", nullable = false)
+    @Column(name = "previous_status")
     private BookingStatus previousStatus;
 
     @Enumerated(EnumType.ORDINAL)
@@ -29,8 +29,9 @@ public class BookingHistory {
     @Column(name = "changed_at", nullable = false)
     private OffsetDateTime changedAt;
 
-    @Column(name = "reason", nullable = true)
-    private String reason;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reason", nullable = false)
+    private BookingHistoryReason reason;
 
     @Column(name = "initiator", nullable = false)
     private String initiator;
@@ -40,7 +41,7 @@ public class BookingHistory {
             BookingStatus previousStatus,
             BookingStatus newStatus,
             OffsetDateTime changedAt,
-            String reason,
+            BookingHistoryReason reason,
             String initiator
     ) {
         BookingHistory history = new BookingHistory();

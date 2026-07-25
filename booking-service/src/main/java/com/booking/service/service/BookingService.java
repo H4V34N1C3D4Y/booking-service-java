@@ -4,6 +4,7 @@ import com.booking.service.config.CurrentDateTimeProvider;
 import com.booking.service.dto.response.BookingStatsResponse;
 import com.booking.service.dto.response.ResourceStats;
 import com.booking.service.entity.Booking;
+import com.booking.service.entity.BookingHistoryReason;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
@@ -38,8 +39,8 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final BookingEventPublisher bookingEventPublisher;
     private final CurrentDateTimeProvider dateTimeProvider;
-
     private final BookingHistoryService bookingHistoryService;
+    private final ProcessedEventService processedEventService;
 
     // === КОМАНДЫ (Use Cases) ===
 
@@ -56,14 +57,11 @@ public class BookingService {
         UUID requestId = UUID.randomUUID();
         booking.setCatalogRequestId(requestId);
 
-        booking = bookingRepository.save(booking);
-
-        bookingHistoryService.saveHistory(
-                booking.getId(),
+        saveBookingAndHistory(
+                booking,
                 null,
-                booking.getStatus(),
-                "BOOKING_CREATED",
-                booking.getUserId().toString()
+                BookingHistoryReason.BOOKING_CREATED,
+                "System"
         );
 
         CreateBookingJobRequest command = new CreateBookingJobRequest(
@@ -94,14 +92,11 @@ public class BookingService {
         BookingStatus previousStatus = booking.getStatus();
         booking.startCancellation(dateTimeProvider.utcNow());
 
-        bookingRepository.save(booking);
-
-        bookingHistoryService.saveHistory(
-                booking.getId(),
+        saveBookingAndHistory(
+                booking,
                 previousStatus,
-                booking.getStatus(),
-                "USER_CANCELLATION_REQUEST",
-                booking.getUserId().toString()
+                BookingHistoryReason.USER_CANCELLATION_REQUEST,
+                "System"
         );
 
         if (booking.getCatalogRequestId() != null) {
@@ -168,8 +163,14 @@ public class BookingService {
      * @param requestId идентификатор запроса
      */
     @Transactional
-    public void handleBookingJobConfirmed(UUID requestId) {
+    public void handleBookingJobConfirmed(UUID requestId, UUID eventId) {
         log.info("Получено событие BookingJobConfirmed: requestId={}", requestId);
+
+        if (!processedEventService.register(eventId)) {
+            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
+            return;
+        }
+
 
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
@@ -190,13 +191,11 @@ public class BookingService {
 
         BookingStatus previousStatus = booking.getStatus();
         booking.confirm();
-        bookingRepository.save(booking);
 
-        bookingHistoryService.saveHistory(
-                booking.getId(),
+        saveBookingAndHistory(
+                booking,
                 previousStatus,
-                booking.getStatus(),
-                "BOOKING_CONFIRMED",
+                BookingHistoryReason.BOOKING_CONFIRMED,
                 "System"
         );
 
@@ -211,8 +210,14 @@ public class BookingService {
      * @param requestId идентификатор запроса
      */
     @Transactional
-    public void handleBookingJobDenied(UUID requestId) {
+    public void handleBookingJobDenied(UUID requestId, UUID eventId) {
         log.info("Получено событие BookingJobDenied: requestId={}", requestId);
+
+
+        if (!processedEventService.register(eventId)) {
+            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
+            return;
+        }
 
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
@@ -226,13 +231,11 @@ public class BookingService {
         BookingStatus previousStatus = booking.getStatus();
         OffsetDateTime now  = dateTimeProvider.utcNow();
         booking.cancel(now.toLocalDate());
-        bookingRepository.save(booking);
 
-        bookingHistoryService.saveHistory(
-                booking.getId(),
+        saveBookingAndHistory(
+                booking,
                 previousStatus,
-                booking.getStatus(),
-                "BOOKING_DENIED",
+                BookingHistoryReason.BOOKING_DENIED,
                 "System"
         );
 
@@ -246,8 +249,15 @@ public class BookingService {
      * @param requestId идентификатор запроса
      */
     @Transactional
-    public void handleError(UUID requestId) {
+    public void handleError(UUID requestId, UUID eventId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
+
+
+        if (!processedEventService.register(eventId)) {
+            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
+            return;
+        }
+
         Booking booking = bookingRepository
                 .findByCatalogRequestId(requestId)
                 .orElse(null);
@@ -262,15 +272,31 @@ public class BookingService {
 
         bookingRepository.save(booking);
 
-        bookingHistoryService.saveHistory(
-                booking.getId(),
+        saveBookingAndHistory(
+                booking,
                 previousStatus,
-                booking.getStatus(),
-                "ROLLBACK",
+                BookingHistoryReason.ROLLBACK,
                 "System"
         );
 
         log.info("Произошёл успешный откат события: requestId={}, status={}", requestId, booking.getStatus().getValue());
+    }
+
+    private void saveBookingAndHistory(
+            Booking booking,
+            BookingStatus previousStatus,
+            BookingHistoryReason reason,
+            String initiator
+    ) {
+        bookingRepository.save(booking);
+
+        bookingHistoryService.saveHistory(
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                reason,
+                initiator
+        );
     }
 
     @Transactional(readOnly = true)
