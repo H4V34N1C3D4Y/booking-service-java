@@ -22,13 +22,23 @@ public class ProcessedEvent {
     @Column(name = "processed_at", nullable = false)
     private OffsetDateTime processedAt;
 
+    @Column(name = "event_type", nullable = false)
+    private String eventType;
+
+    @Column(name = "booking_id")
+    private Long bookingId;
+
     public static ProcessedEvent create(
             UUID eventId,
-            OffsetDateTime processedAt
+            OffsetDateTime processedAt,
+            String eventType,
+            Long bookingId
     ) {
         ProcessedEvent event = new ProcessedEvent();
         event.eventId = eventId;
         event.processedAt = processedAt;
+        event.eventType = eventType;
+        event.bookingId = bookingId;
         return event;
     }
 }

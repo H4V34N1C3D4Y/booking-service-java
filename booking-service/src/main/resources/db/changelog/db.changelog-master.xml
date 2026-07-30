@@ -116,9 +116,10 @@
                 <constraints nullable="false"/>
             </column>
         </createTable>
-        <createIndex indexName="idx_processed_events_event_id"
-                     tableName="processed_events">
-            <column name="event_id"/>
+        <createIndex
+                indexName="idx_processed_events_processed_at"
+                tableName="processed_events">
+            <column name="processed_at"/>
         </createIndex>
     </changeSet>
 </databaseChangeLog>

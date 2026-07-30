@@ -166,15 +166,14 @@ public class BookingService {
     public void handleBookingJobConfirmed(UUID requestId, UUID eventId) {
         log.info("Получено событие BookingJobConfirmed: requestId={}", requestId);
 
-        if (!processedEventService.register(eventId)) {
-            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
-            return;
-        }
-
-
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            return;
+        }
+
+        if (!processedEventService.register(eventId, "BOOKING_JOB_CONFIRMED", booking.getId())) {
+            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
             return;
         }
 
@@ -213,15 +212,14 @@ public class BookingService {
     public void handleBookingJobDenied(UUID requestId, UUID eventId) {
         log.info("Получено событие BookingJobDenied: requestId={}", requestId);
 
-
-        if (!processedEventService.register(eventId)) {
-            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
-            return;
-        }
-
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            return;
+        }
+
+        if (!processedEventService.register(eventId, "BOOKING_JOB_DENIED",booking.getId())) {
+            log.warn("Дублирующее событие отмены проигнорировано: eventId={}", eventId);
             return;
         }
 
@@ -252,18 +250,17 @@ public class BookingService {
     public void handleError(UUID requestId, UUID eventId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
 
-
-        if (!processedEventService.register(eventId)) {
-            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
-            return;
-        }
-
         Booking booking = bookingRepository
                 .findByCatalogRequestId(requestId)
                 .orElse(null);
 
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            return;
+        }
+
+        if (!processedEventService.register(eventId, "ERROR",booking.getId())) {
+            log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", eventId);
             return;
         }
 

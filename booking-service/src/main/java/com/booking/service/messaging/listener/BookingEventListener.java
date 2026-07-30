@@ -91,8 +91,8 @@ public class BookingEventListener {
                 event.getEventId(), event.getRequestId());
 
         bookingService.handleBookingJobConfirmed(
-                event.getEventId(),
-                event.getRequestId());
+                event.getRequestId(),
+                event.getEventId());
     }
 
     private void handleBookingJobDenied(String payload) throws Exception {
@@ -104,8 +104,8 @@ public class BookingEventListener {
                 event.getEventId(), event.getRequestId());
 
         bookingService.handleBookingJobDenied(
-                event.getEventId(),
-                event.getRequestId());
+                event.getRequestId(),
+                event.getEventId());
     }
 
     private void handleCancelBookingError(String payload) throws Exception {
@@ -117,8 +117,8 @@ public class BookingEventListener {
         log.debug("Команда отмены из DLQ: eventId={},requestId={}", command.getEventId(), command.getRequestId());
 
         bookingService.handleError(
-                command.getEventId(),
-                command.getRequestId());
+                command.getRequestId(),
+                command.getEventId());
     }
 
     /**
