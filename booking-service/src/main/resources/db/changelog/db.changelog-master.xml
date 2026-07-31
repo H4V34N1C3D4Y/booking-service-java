@@ -122,5 +122,4 @@
             <column name="processed_at"/>
         </createIndex>
     </changeSet>
-
 </databaseChangeLog>
