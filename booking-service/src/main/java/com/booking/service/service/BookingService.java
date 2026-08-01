@@ -6,6 +6,7 @@ import com.booking.service.dto.response.ResourceStats;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingHistoryReason;
 import com.booking.service.entity.BookingStatus;
+import com.booking.service.entity.ProcessedEventType;
 import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
@@ -172,7 +173,7 @@ public class BookingService {
             return;
         }
 
-        if (!processedEventService.register(eventId, "BOOKING_JOB_CONFIRMED", booking.getId())) {
+        if (!processedEventService.register(eventId, ProcessedEventType.BOOKING_JOB_CONFIRMED, booking.getId())) {
             log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
             return;
         }
@@ -218,7 +219,7 @@ public class BookingService {
             return;
         }
 
-        if (!processedEventService.register(eventId, "BOOKING_JOB_DENIED",booking.getId())) {
+        if (!processedEventService.register(eventId, ProcessedEventType.BOOKING_JOB_DENIED,booking.getId())) {
             log.warn("Дублирующее событие отмены проигнорировано: eventId={}", eventId);
             return;
         }
@@ -259,15 +260,13 @@ public class BookingService {
             return;
         }
 
-        if (!processedEventService.register(eventId, "ERROR",booking.getId())) {
+        if (!processedEventService.register(eventId, ProcessedEventType.CANCEL_BOOKING_ERROR, booking.getId())) {
             log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", eventId);
             return;
         }
 
         BookingStatus previousStatus = booking.getStatus();
         booking.rollbackCancellation();
-
-        bookingRepository.save(booking);
 
         saveBookingAndHistory(
                 booking,

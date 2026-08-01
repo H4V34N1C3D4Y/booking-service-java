@@ -1,6 +1,7 @@
 package com.booking.service.service;
 
 import com.booking.service.config.CurrentDateTimeProvider;
+import com.booking.service.entity.ProcessedEventType;
 import com.booking.service.repository.ProcessedEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,20 +20,17 @@ public class ProcessedEventService {
     private final ProcessedEventRepository processedEventRepository;
     private final CurrentDateTimeProvider dateTimeProvider;
 
-    private final ProcessedEventRepository repository;
-
     @Transactional(propagation = Propagation.MANDATORY)
-    public boolean register(UUID eventId, String eventType, Long bookingId) {
+    public boolean register(UUID eventId, ProcessedEventType  eventType, Long bookingId) {
 
-        if (repository.existsByEventId(eventId)) {
+        if (processedEventRepository.existsByEventId(eventId)) {
             return false;
         }
 
         return saveProcessedEvent(eventId, eventType, bookingId);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean saveProcessedEvent(UUID eventId, String eventType, Long bookingId) {
+    public boolean saveProcessedEvent(UUID eventId, ProcessedEventType eventType, Long bookingId) {
         try {
             processedEventRepository.save(
                     ProcessedEvent.create(

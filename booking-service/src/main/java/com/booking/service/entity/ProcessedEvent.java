@@ -23,7 +23,7 @@ public class ProcessedEvent {
     private OffsetDateTime processedAt;
 
     @Column(name = "event_type", nullable = false)
-    private String eventType;
+    private ProcessedEventType eventType;
 
     @Column(name = "booking_id")
     private Long bookingId;
@@ -31,7 +31,7 @@ public class ProcessedEvent {
     public static ProcessedEvent create(
             UUID eventId,
             OffsetDateTime processedAt,
-            String eventType,
+            ProcessedEventType  eventType,
             Long bookingId
     ) {
         ProcessedEvent event = new ProcessedEvent();
