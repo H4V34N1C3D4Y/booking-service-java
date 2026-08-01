@@ -107,10 +107,8 @@
                              primaryKeyName="pk_processed_events"
                              nullable="false"/>
             </column>
-            <column name="event_id" type="UUID">
-                <constraints nullable="false"
-                             unique="true"
-                             uniqueConstraintName="uk_processed_events_event_id"/>
+            <column name="message_key" type="UUID">
+                <constraints nullable="false"/>
             </column>
             <column name="processed_at" type="TIMESTAMP WITH TIME ZONE">
                 <constraints nullable="false"/>

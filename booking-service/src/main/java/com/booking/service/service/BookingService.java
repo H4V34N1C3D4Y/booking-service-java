@@ -173,7 +173,7 @@ public class BookingService {
             return;
         }
 
-        if (!processedEventService.register(eventId, ProcessedEventType.BOOKING_JOB_CONFIRMED, booking.getId())) {
+        if (processedEventService.isProcessed(ProcessedEventType.BOOKING_JOB_CONFIRMED, eventId)) {
             log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
             return;
         }
@@ -199,6 +199,12 @@ public class BookingService {
                 "System"
         );
 
+        processedEventService.save(
+                eventId,
+                ProcessedEventType.BOOKING_JOB_CONFIRMED,
+                booking.getId()
+        );
+
         log.info("Бронирование успешно подтверждено: id={}, новый статус={}",
                 booking.getId(), booking.getStatus());
     }
@@ -219,7 +225,7 @@ public class BookingService {
             return;
         }
 
-        if (!processedEventService.register(eventId, ProcessedEventType.BOOKING_JOB_DENIED,booking.getId())) {
+        if (processedEventService.isProcessed(ProcessedEventType.BOOKING_JOB_DENIED, eventId)) {
             log.warn("Дублирующее событие отмены проигнорировано: eventId={}", eventId);
             return;
         }
@@ -236,6 +242,12 @@ public class BookingService {
                 previousStatus,
                 BookingHistoryReason.BOOKING_DENIED,
                 "System"
+        );
+
+        processedEventService.save(
+                eventId,
+                ProcessedEventType.BOOKING_JOB_DENIED,
+                booking.getId()
         );
 
         log.info("Бронирование успешно отменено: id={}, новый статус={}",
@@ -260,7 +272,7 @@ public class BookingService {
             return;
         }
 
-        if (!processedEventService.register(eventId, ProcessedEventType.CANCEL_BOOKING_ERROR, booking.getId())) {
+        if (processedEventService.isProcessed(ProcessedEventType.CANCEL_BOOKING_ERROR, eventId)) {
             log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", eventId);
             return;
         }
@@ -273,6 +285,12 @@ public class BookingService {
                 previousStatus,
                 BookingHistoryReason.ROLLBACK,
                 "System"
+        );
+
+        processedEventService.save(
+                requestId,
+                ProcessedEventType.CANCEL_BOOKING_ERROR,
+                booking.getId()
         );
 
         log.info("Произошёл успешный откат события: requestId={}, status={}", requestId, booking.getStatus().getValue());

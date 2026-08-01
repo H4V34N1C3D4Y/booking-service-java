@@ -16,26 +16,26 @@ public class ProcessedEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "event_id", nullable = false, unique = true)
-    private UUID eventId;
-
+    @Column(name = "message_key", nullable = false)
+    private UUID messageKey;
     @Column(name = "processed_at", nullable = false)
     private OffsetDateTime processedAt;
 
     @Column(name = "event_type", nullable = false)
+    @Enumerated(EnumType.STRING)
     private ProcessedEventType eventType;
 
     @Column(name = "booking_id")
     private Long bookingId;
 
     public static ProcessedEvent create(
-            UUID eventId,
+            UUID messageKey,
             OffsetDateTime processedAt,
-            ProcessedEventType  eventType,
+            ProcessedEventType eventType,
             Long bookingId
     ) {
         ProcessedEvent event = new ProcessedEvent();
-        event.eventId = eventId;
+        event.messageKey = messageKey;
         event.processedAt = processedAt;
         event.eventType = eventType;
         event.bookingId = bookingId;
