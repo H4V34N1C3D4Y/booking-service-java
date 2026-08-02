@@ -116,9 +116,7 @@ public class BookingEventListener {
 
         log.debug("Команда отмены из DLQ: eventId={},requestId={}", command.getEventId(), command.getRequestId());
 
-        bookingService.handleError(
-                command.getRequestId(),
-                command.getEventId());
+        bookingService.handleError(command.getRequestId());
     }
 
     /**

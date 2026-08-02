@@ -126,6 +126,10 @@
                 tableName="processed_events">
             <column name="processed_at"/>
         </createIndex>
+        <addUniqueConstraint
+                tableName="processed_events"
+                columnNames="event_type,message_key"
+                constraintName="uk_processed_events_event_type_message_key"/>
     </changeSet>
 
 </databaseChangeLog>

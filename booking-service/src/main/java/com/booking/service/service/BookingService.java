@@ -260,7 +260,7 @@ public class BookingService {
      * @param requestId идентификатор запроса
      */
     @Transactional
-    public void handleError(UUID requestId, UUID eventId) {
+    public void handleError(UUID requestId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
 
         Booking booking = bookingRepository
@@ -272,8 +272,8 @@ public class BookingService {
             return;
         }
 
-        if (processedEventService.isProcessed(ProcessedEventType.CANCEL_BOOKING_ERROR, eventId)) {
-            log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", eventId);
+        if (processedEventService.isProcessed(ProcessedEventType.CANCEL_BOOKING_ERROR, requestId)) {
+            log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", requestId);
             return;
         }
 
