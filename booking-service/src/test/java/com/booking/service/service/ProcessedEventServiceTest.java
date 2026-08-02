@@ -1,5 +1,6 @@
 package com.booking.service.service;
 
+import com.booking.service.AbstractIntegrationTest;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.entity.ProcessedEventType;
@@ -7,7 +8,6 @@ import com.booking.service.repository.BookingRepository;
 import com.booking.service.repository.ProcessedEventRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -15,9 +15,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
 @Transactional
-class ProcessedEventServiceTest {
+class ProcessedEventServiceTest extends AbstractIntegrationTest {
 
     @Autowired
     private BookingService bookingService;
@@ -111,7 +110,10 @@ class ProcessedEventServiceTest {
 
         assertEquals(
                 1,
-                processedEventRepository.count()
+                processedEventRepository.countByEventTypeAndMessageKey(
+                        ProcessedEventType.BOOKING_JOB_CONFIRMED,
+                        eventId
+                )
         );
     }
 }

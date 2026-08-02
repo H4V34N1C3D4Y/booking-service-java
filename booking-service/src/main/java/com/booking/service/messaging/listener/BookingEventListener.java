@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.Message;
 
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -91,12 +92,10 @@ public class BookingEventListener {
         log.debug("BookingJobConfirmed: eventId={}, requestId={}",
                 event.getEventId(), event.getRequestId());
 
-        try {
-            bookingService.handleBookingJobConfirmed(event.getRequestId(), event.getEventId());
-        } catch (DataIntegrityViolationException ex){
-            log.info("Событие уже обработано конкурентным экземпляром: eventId={}", event.getEventId());
-        }
-
+        runIdempotent(
+                event.getEventId(),
+                () -> bookingService.handleBookingJobConfirmed(event.getRequestId(), event.getEventId())
+        );
     }
 
     private void handleBookingJobDenied(String payload) throws Exception {
@@ -106,11 +105,10 @@ public class BookingEventListener {
 
         log.debug("BookingJobDenied: eventId={}, requestId={}", event.getEventId(), event.getRequestId());
 
-        try {
-            bookingService.handleBookingJobDenied(event.getRequestId(), event.getEventId());
-        } catch (DataIntegrityViolationException ex){
-            log.info("Событие уже обработано конкурентным экземпляром: eventId={}", event.getEventId());
-        }
+        runIdempotent(
+                event.getEventId(),
+                () -> bookingService.handleBookingJobDenied(event.getRequestId(), event.getEventId())
+        );
     }
 
     private void handleCancelBookingError(String payload) throws Exception {
@@ -121,11 +119,9 @@ public class BookingEventListener {
 
         log.debug("Команда отмены из DLQ: eventId={},requestId={}", command.getEventId(), command.getRequestId());
 
-        try {
-            bookingService.handleError(command.getRequestId(), command.getEventId());
-        } catch (DataIntegrityViolationException ex){
-            log.info("Событие уже обработано конкурентным экземпляром: eventId={}", command.getEventId());
-        }
+        runIdempotent(
+                command.getEventId(),
+                () -> bookingService.handleError(command.getRequestId(), command.getEventId()));
     }
 
     /**
@@ -133,5 +129,16 @@ public class BookingEventListener {
      */
     private boolean isMessageType(String actualType, String expectedType) {
         return actualType != null && actualType.contains(expectedType.split(",")[0].trim());
+    }
+
+    private void runIdempotent(UUID eventId, Runnable action) {
+        try {
+            action.run();
+        } catch (DataIntegrityViolationException ex) {
+            log.info(
+                    "Событие уже обработано конкурентным экземпляром: eventId={}",
+                    eventId
+            );
+        }
     }
 }

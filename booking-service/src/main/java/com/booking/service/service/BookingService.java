@@ -219,16 +219,17 @@ public class BookingService {
     public void handleBookingJobDenied(UUID requestId, UUID eventId) {
         log.info("Получено событие BookingJobDenied: requestId={}", requestId);
 
+        if (processedEventService.isProcessed(ProcessedEventType.BOOKING_JOB_DENIED, eventId)) {
+            log.warn("Дублирующее событие отмены проигнорировано: eventId={}", eventId);
+            return;
+        }
+
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
             return;
         }
 
-        if (processedEventService.isProcessed(ProcessedEventType.BOOKING_JOB_DENIED, eventId)) {
-            log.warn("Дублирующее событие отмены проигнорировано: eventId={}", eventId);
-            return;
-        }
 
         log.info("Найдено бронирование: id={}, статус={}. Отменяем...",
                 booking.getId(), booking.getStatus());
@@ -263,6 +264,11 @@ public class BookingService {
     public void handleError(UUID requestId, UUID eventId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
 
+        if (processedEventService.isProcessed(ProcessedEventType.CANCEL_BOOKING_ERROR, eventId)) {
+            log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", eventId);
+            return;
+        }
+
         Booking booking = bookingRepository
                 .findByCatalogRequestId(requestId)
                 .orElse(null);
@@ -272,10 +278,6 @@ public class BookingService {
             return;
         }
 
-        if (processedEventService.isProcessed(ProcessedEventType.CANCEL_BOOKING_ERROR, requestId)) {
-            log.warn("Дублирующее событие ошибки проигнорировано: eventId={}", requestId);
-            return;
-        }
 
         BookingStatus previousStatus = booking.getStatus();
         booking.rollbackCancellation();
