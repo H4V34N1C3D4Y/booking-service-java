@@ -11,6 +11,23 @@ spring:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
 
+  cloud:
+    stream:
+      bindings:
+        bookingStatusChanged-out-0:
+          destination: booking-domain-events
+          content-type: application/json
+          producer:
+            required-groups: booking-status-events
+
+      rabbit:
+        bindings:
+          bookingStatusChanged-out-0:
+            producer:
+              exchange-type: topic
+              routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"
+
+
 # Springdoc OpenAPI (Swagger)
 springdoc:
   api-docs:
@@ -39,6 +56,17 @@ rabbitmq:
       # Команды (исходящие в Catalog Service)
       create-booking-job: BookingService.Catalog.Async.Api.Contracts.Requests.CreateBookingJobRequest, BookingService.Catalog.Async.Api.Contracts
       cancel-booking-job: BookingService.Catalog.Async.Api.Contracts.Requests.CancelBookingJobByRequestIdRequest, BookingService.Catalog.Async.Api.Contracts
+      booking-status-changed: "BookingService.Booking.Events.BookingStatusChangedEvent, BookingService.Booking.Events"
       # События (входящие от Catalog Service)
       booking-job-confirmed: BookingService.Catalog.Async.Api.Contracts.Events.BookingJobConfirmed, BookingService.Catalog.Async.Api.Contracts
       booking-job-denied: BookingService.Catalog.Async.Api.Contracts.Events.BookingJobDenied, BookingService.Catalog.Async.Api.Contracts
+
+# Background Polling
+booking:
+  background:
+    polling:
+      interval: 5000
+
+  cancellation:
+    timeout: PT5M
+    retry-interval: 60000
