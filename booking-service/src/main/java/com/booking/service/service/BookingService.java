@@ -167,14 +167,14 @@ public class BookingService {
     public void handleBookingJobConfirmed(UUID requestId, UUID eventId) {
         log.info("Получено событие BookingJobConfirmed: requestId={}", requestId);
 
-        Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
-        if (booking == null) {
-            log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+        if (processedEventService.isProcessed(ProcessedEventType.BOOKING_JOB_CONFIRMED, eventId)) {
+            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
             return;
         }
 
-        if (processedEventService.isProcessed(ProcessedEventType.BOOKING_JOB_CONFIRMED, eventId)) {
-            log.warn("Дублирующее событие подтверждения проигнорировано: eventId={}", eventId);
+        Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
+        if (booking == null) {
+            log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
             return;
         }
 
@@ -260,7 +260,7 @@ public class BookingService {
      * @param requestId идентификатор запроса
      */
     @Transactional
-    public void handleError(UUID requestId) {
+    public void handleError(UUID requestId, UUID eventId) {
         log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
 
         Booking booking = bookingRepository
@@ -288,7 +288,7 @@ public class BookingService {
         );
 
         processedEventService.save(
-                requestId,
+                eventId,
                 ProcessedEventType.CANCEL_BOOKING_ERROR,
                 booking.getId()
         );

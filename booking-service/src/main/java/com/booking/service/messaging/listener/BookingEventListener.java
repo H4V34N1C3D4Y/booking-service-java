@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.Message;
 
 import java.util.function.Consumer;
@@ -90,9 +91,12 @@ public class BookingEventListener {
         log.debug("BookingJobConfirmed: eventId={}, requestId={}",
                 event.getEventId(), event.getRequestId());
 
-        bookingService.handleBookingJobConfirmed(
-                event.getRequestId(),
-                event.getEventId());
+        try {
+            bookingService.handleBookingJobConfirmed(event.getRequestId(), event.getEventId());
+        } catch (DataIntegrityViolationException ex){
+            log.info("Событие уже обработано конкурентным экземпляром: eventId={}", event.getEventId());
+        }
+
     }
 
     private void handleBookingJobDenied(String payload) throws Exception {
@@ -100,12 +104,13 @@ public class BookingEventListener {
 
         BookingJobDenied event = objectMapper.readValue(payload, BookingJobDenied.class);
 
-        log.debug("BookingJobDenied: eventId={}, requestId={}",
-                event.getEventId(), event.getRequestId());
+        log.debug("BookingJobDenied: eventId={}, requestId={}", event.getEventId(), event.getRequestId());
 
-        bookingService.handleBookingJobDenied(
-                event.getRequestId(),
-                event.getEventId());
+        try {
+            bookingService.handleBookingJobDenied(event.getRequestId(), event.getEventId());
+        } catch (DataIntegrityViolationException ex){
+            log.info("Событие уже обработано конкурентным экземпляром: eventId={}", event.getEventId());
+        }
     }
 
     private void handleCancelBookingError(String payload) throws Exception {
@@ -116,7 +121,11 @@ public class BookingEventListener {
 
         log.debug("Команда отмены из DLQ: eventId={},requestId={}", command.getEventId(), command.getRequestId());
 
-        bookingService.handleError(command.getRequestId());
+        try {
+            bookingService.handleError(command.getRequestId(), command.getEventId());
+        } catch (DataIntegrityViolationException ex){
+            log.info("Событие уже обработано конкурентным экземпляром: eventId={}", command.getEventId());
+        }
     }
 
     /**
