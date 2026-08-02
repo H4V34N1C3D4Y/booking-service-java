@@ -130,7 +130,6 @@ public class BookingEventListener {
     private boolean isMessageType(String actualType, String expectedType) {
         return actualType != null && actualType.contains(expectedType.split(",")[0].trim());
     }
-
     private void runIdempotent(UUID eventId, Runnable action) {
         try {
             action.run();
