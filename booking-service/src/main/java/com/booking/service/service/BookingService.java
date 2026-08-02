@@ -18,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.booking.service.messaging.contracts.BookingStatusChangedEvent;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -278,6 +279,14 @@ public class BookingService {
             return;
         }
 
+        if (booking.getStatus() != BookingStatus.CANCELLATION_PENDING) {
+            log.warn(
+                    "Повторная ошибка отмены проигнорирована: requestId={}, status={}",
+                    requestId,
+                    booking.getStatus()
+            );
+            return;
+        }
 
         BookingStatus previousStatus = booking.getStatus();
         booking.rollbackCancellation();
@@ -312,6 +321,16 @@ public class BookingService {
                 booking.getStatus(),
                 reason,
                 initiator
+        );
+
+        bookingEventPublisher.publishBookingStatusChanged(
+                BookingStatusChangedEvent.create(
+                        booking.getId(),
+                        previousStatus,
+                        booking.getStatus(),
+                        dateTimeProvider.utcNow(),
+                        reason
+                )
         );
     }
 

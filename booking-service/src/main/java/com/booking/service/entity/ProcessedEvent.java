@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "processed_events")
+@Table(name = "processed_events", uniqueConstraints = @UniqueConstraint(columnNames = {"event_type", "message_key"}))
 @Getter
 @NoArgsConstructor
 public class ProcessedEvent {

@@ -1,10 +1,12 @@
 package com.booking.service.messaging.listener;
 
 import com.booking.service.config.RabbitMqProperties;
+import com.booking.service.entity.ProcessedEventType;
 import com.booking.service.messaging.contracts.BookingJobConfirmed;
 import com.booking.service.messaging.contracts.BookingJobDenied;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.service.BookingService;
+import com.booking.service.service.ProcessedEventService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class BookingEventListener {
     private final BookingService bookingService;
     private final ObjectMapper objectMapper;
     private final RabbitMqProperties rabbitMqProperties;
+    private final ProcessedEventService processedEventService;
 
     /**
      * Единый Consumer для всех событий от Catalog Service
@@ -94,6 +97,7 @@ public class BookingEventListener {
 
         runIdempotent(
                 event.getEventId(),
+                ProcessedEventType.BOOKING_JOB_CONFIRMED,
                 () -> bookingService.handleBookingJobConfirmed(event.getRequestId(), event.getEventId())
         );
     }
@@ -107,6 +111,7 @@ public class BookingEventListener {
 
         runIdempotent(
                 event.getEventId(),
+                ProcessedEventType.BOOKING_JOB_DENIED,
                 () -> bookingService.handleBookingJobDenied(event.getRequestId(), event.getEventId())
         );
     }
@@ -121,6 +126,7 @@ public class BookingEventListener {
 
         runIdempotent(
                 command.getEventId(),
+                ProcessedEventType.CANCEL_BOOKING_ERROR,
                 () -> bookingService.handleError(command.getRequestId(), command.getEventId()));
     }
 
@@ -130,10 +136,19 @@ public class BookingEventListener {
     private boolean isMessageType(String actualType, String expectedType) {
         return actualType != null && actualType.contains(expectedType.split(",")[0].trim());
     }
-    private void runIdempotent(UUID eventId, Runnable action) {
+    private void runIdempotent(UUID eventId, ProcessedEventType eventType, Runnable action) {
         try {
             action.run();
         } catch (DataIntegrityViolationException ex) {
+
+            if (processedEventService.isProcessed(eventType, eventId)) {
+                log.info(
+                        "Событие уже обработано конкурентным экземпляром: eventId={}",
+                        eventId
+                );
+                return;
+            }
+
             log.info(
                     "Событие уже обработано конкурентным экземпляром: eventId={}",
                     eventId
