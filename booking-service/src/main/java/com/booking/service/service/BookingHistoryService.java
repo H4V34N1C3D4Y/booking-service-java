@@ -15,6 +15,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -31,13 +33,14 @@ public class BookingHistoryService {
             BookingStatus previousStatus,
             BookingStatus newStatus,
             BookingHistoryReason reason,
-            String initiator
+            String initiator,
+            OffsetDateTime changedAt
     ) {
         BookingHistory history = BookingHistory.create(
                 bookingId,
                 previousStatus,
                 newStatus,
-                dateTimeProvider.utcNow(),
+                changedAt,
                 reason,
                 initiator
         );

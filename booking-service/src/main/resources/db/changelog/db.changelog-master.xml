@@ -131,5 +131,47 @@
                 columnNames="event_type,message_key"
                 constraintName="uk_processed_events_event_type_message_key"/>
     </changeSet>
+    <changeSet id="5" author="booking-service">
+        <comment>
+            Создание таблицы для Transactional Outbox
+        </comment>
+
+        <createTable tableName="outbox_messages">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempts" type="INT"
+                    defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sent_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex
+                tableName="outbox_messages"
+                indexName="idx_outbox_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex
+                tableName="outbox_messages"
+                indexName="idx_outbox_created_at">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
 
 </databaseChangeLog>

@@ -28,14 +28,14 @@ public class BookingStatusChangedEvent {
     @JsonProperty("ChangedAt")
     private OffsetDateTime changedAt;
     @JsonProperty("Reason")
-    private BookingHistoryReason reason;
+    private String reason;
 
     public static BookingStatusChangedEvent create(
             Long bookingId,
             BookingStatus previousStatus,
             BookingStatus newStatus,
             OffsetDateTime changedAt,
-            BookingHistoryReason  reason
+            BookingHistoryReason reason
     ) {
         return new BookingStatusChangedEvent(
                 UUID.randomUUID(),
@@ -43,7 +43,7 @@ public class BookingStatusChangedEvent {
                 previousStatus,
                 newStatus,
                 changedAt,
-                reason
+                reason.name()
         );
     }
 }

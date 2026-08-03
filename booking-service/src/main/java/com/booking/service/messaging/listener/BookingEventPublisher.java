@@ -83,7 +83,8 @@ public class BookingEventPublisher {
 
     public void publishBookingStatusChanged(BookingStatusChangedEvent event) {
         log.info(
-                "Публикация события BookingStatusChanged: bookingId={}, {} -> {}",
+                "Публикация события BookingStatusChanged: eventId={}, bookingId={}, {} -> {}",
+                event.getEventId(),
                 event.getBookingId(),
                 event.getPreviousStatus(),
                 event.getNewStatus()
@@ -96,6 +97,10 @@ public class BookingEventPublisher {
 
         streamBridge.send("bookingStatusChanged-out-0", message);
 
-        log.info("Событие BookingStatusChanged отправлено в RabbitMQ");
+        log.info(
+                "Событие BookingStatusChanged отправлено в RabbitMQ: eventId={}, bookingId={}",
+                event.getEventId(),
+                event.getBookingId()
+        );
     }
 }

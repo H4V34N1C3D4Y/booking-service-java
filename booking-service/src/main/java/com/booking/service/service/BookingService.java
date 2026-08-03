@@ -43,6 +43,7 @@ public class BookingService {
     private final CurrentDateTimeProvider dateTimeProvider;
     private final BookingHistoryService bookingHistoryService;
     private final ProcessedEventService processedEventService;
+    private final OutboxService outboxService;
 
     // === КОМАНДЫ (Use Cases) ===
 
@@ -59,7 +60,7 @@ public class BookingService {
         UUID requestId = UUID.randomUUID();
         booking.setCatalogRequestId(requestId);
 
-        saveBookingAndHistory(
+        saveBookingHistoryAndOutbox(
                 booking,
                 null,
                 BookingHistoryReason.BOOKING_CREATED,
@@ -94,7 +95,7 @@ public class BookingService {
         BookingStatus previousStatus = booking.getStatus();
         booking.startCancellation(dateTimeProvider.utcNow());
 
-        saveBookingAndHistory(
+        saveBookingHistoryAndOutbox(
                 booking,
                 previousStatus,
                 BookingHistoryReason.USER_CANCELLATION_REQUEST,
@@ -193,10 +194,10 @@ public class BookingService {
         BookingStatus previousStatus = booking.getStatus();
         booking.confirm();
 
-        saveBookingAndHistory(
+        saveBookingHistoryAndOutbox(
                 booking,
                 previousStatus,
-                BookingHistoryReason.BOOKING_CONFIRMED,
+                BookingHistoryReason.RACE_CONDITION,
                 "System"
         );
 
@@ -239,7 +240,7 @@ public class BookingService {
         OffsetDateTime now  = dateTimeProvider.utcNow();
         booking.cancel(now.toLocalDate());
 
-        saveBookingAndHistory(
+        saveBookingHistoryAndOutbox(
                 booking,
                 previousStatus,
                 BookingHistoryReason.BOOKING_DENIED,
@@ -291,7 +292,7 @@ public class BookingService {
         BookingStatus previousStatus = booking.getStatus();
         booking.rollbackCancellation();
 
-        saveBookingAndHistory(
+        saveBookingHistoryAndOutbox(
                 booking,
                 previousStatus,
                 BookingHistoryReason.ROLLBACK,
@@ -307,7 +308,7 @@ public class BookingService {
         log.info("Произошёл успешный откат события: requestId={}, status={}", requestId, booking.getStatus().getValue());
     }
 
-    private void saveBookingAndHistory(
+    private void saveBookingHistoryAndOutbox(
             Booking booking,
             BookingStatus previousStatus,
             BookingHistoryReason reason,
@@ -315,23 +316,24 @@ public class BookingService {
     ) {
         bookingRepository.save(booking);
 
+        OffsetDateTime now = dateTimeProvider.utcNow();
+
         bookingHistoryService.saveHistory(
                 booking.getId(),
                 previousStatus,
                 booking.getStatus(),
                 reason,
-                initiator
+                initiator,
+                now
         );
 
-        bookingEventPublisher.publishBookingStatusChanged(
-                BookingStatusChangedEvent.create(
-                        booking.getId(),
-                        previousStatus,
-                        booking.getStatus(),
-                        dateTimeProvider.utcNow(),
-                        reason
-                )
-        );
+        outboxService.saveBookingStatusChanged(BookingStatusChangedEvent.create(
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                now,
+                reason
+        ));
     }
 
     @Transactional(readOnly = true)
