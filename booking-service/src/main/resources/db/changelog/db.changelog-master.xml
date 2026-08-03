@@ -45,5 +45,134 @@
             <column name="resource_id"/>
         </createIndex>
     </changeSet>
+    <changeSet id="2" author="booking-service">
+        <comment>
+            Добавление полей для компенсирующей транзакции отмены бронирования
+        </comment>
+        <addColumn tableName="bookings">
+            <column name="previous_status" type="INTEGER">
+                <constraints nullable="true"/>
+            </column>
+            <column name="cancellation_requested_at"
+                    type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    <changeSet id="3" author="booking-service">
+        <comment>Создание таблицы истории изменений статусов бронирований</comment>
+
+        <createTable tableName="booking_history">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="booking_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="previous_status" type="INTEGER">
+                <constraints nullable="true"/>
+            </column>
+            <column name="new_status" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changed_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="initiator" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex indexName="idx_booking_history_booking_id"
+                     tableName="booking_history">
+            <column name="booking_id"/>
+        </createIndex>
+        <addForeignKeyConstraint
+                baseTableName="booking_history"
+                baseColumnNames="booking_id"
+                constraintName="fk_booking_history_booking"
+                referencedTableName="bookings"
+                referencedColumnNames="id"/>
+    </changeSet>
+    <changeSet id="4" author="booking-service">
+        <comment>
+            Создание таблицы обработанных событий для идемпотентности
+        </comment>
+
+        <createTable tableName="processed_events">
+            <column name="id" type="BIGSERIAL" autoIncrement="true">
+                <constraints primaryKey="true"
+                             primaryKeyName="pk_processed_events"
+                             nullable="false"/>
+            </column>
+            <column name="message_key" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="processed_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+
+            <column name="booking_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+        <createIndex
+                indexName="idx_processed_events_processed_at"
+                tableName="processed_events">
+            <column name="processed_at"/>
+        </createIndex>
+        <addUniqueConstraint
+                tableName="processed_events"
+                columnNames="event_type,message_key"
+                constraintName="uk_processed_events_event_type_message_key"/>
+    </changeSet>
+    <changeSet id="5" author="booking-service">
+        <comment>
+            Создание таблицы для Transactional Outbox
+        </comment>
+
+        <createTable tableName="outbox_messages">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="message_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempts" type="INT"
+                    defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sent_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="last_error" type="TEXT"/>
+        </createTable>
+
+        <createIndex
+                tableName="outbox_messages"
+                indexName="idx_outbox_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex
+                tableName="outbox_messages"
+                indexName="idx_outbox_created_at">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
 
 </databaseChangeLog>

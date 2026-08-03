@@ -52,6 +52,11 @@ spring:
           destination: booking-service-catalog-direct
           group: booking-service-catalog-error-queue
           content-type: application/json
+        bookingStatusChanged-out-0:
+          destination: booking-domain-events
+          content-type: application/json
+          producer:
+            required-groups: booking-status-events
       rabbit:
         binder:
           connection-name-prefix: booking-service
@@ -75,3 +80,7 @@ spring:
               binding-routing-key: 'error'
               # Не реплицируем ошибки повторно (уже в DLQ)
               republish-to-dlq: false
+          bookingStatusChanged-out-0:
+            producer:
+              exchange-type: topic
+              routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"
