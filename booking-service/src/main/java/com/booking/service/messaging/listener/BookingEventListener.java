@@ -1,17 +1,21 @@
 package com.booking.service.messaging.listener;
 
 import com.booking.service.config.RabbitMqProperties;
+import com.booking.service.entity.ProcessedEventType;
 import com.booking.service.messaging.contracts.BookingJobConfirmed;
 import com.booking.service.messaging.contracts.BookingJobDenied;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.service.BookingService;
+import com.booking.service.service.ProcessedEventService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.Message;
 
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -26,6 +30,7 @@ public class BookingEventListener {
     private final BookingService bookingService;
     private final ObjectMapper objectMapper;
     private final RabbitMqProperties rabbitMqProperties;
+    private final ProcessedEventService processedEventService;
 
     /**
      * Единый Consumer для всех событий от Catalog Service
@@ -90,7 +95,11 @@ public class BookingEventListener {
         log.debug("BookingJobConfirmed: eventId={}, requestId={}",
                 event.getEventId(), event.getRequestId());
 
-        bookingService.handleBookingJobConfirmed(event.getRequestId());
+        runIdempotent(
+                event.getEventId(),
+                ProcessedEventType.BOOKING_JOB_CONFIRMED,
+                () -> bookingService.handleBookingJobConfirmed(event.getRequestId(), event.getEventId())
+        );
     }
 
     private void handleBookingJobDenied(String payload) throws Exception {
@@ -98,10 +107,13 @@ public class BookingEventListener {
 
         BookingJobDenied event = objectMapper.readValue(payload, BookingJobDenied.class);
 
-        log.debug("BookingJobDenied: eventId={}, requestId={}",
-                event.getEventId(), event.getRequestId());
+        log.debug("BookingJobDenied: eventId={}, requestId={}", event.getEventId(), event.getRequestId());
 
-        bookingService.handleBookingJobDenied(event.getRequestId());
+        runIdempotent(
+                event.getEventId(),
+                ProcessedEventType.BOOKING_JOB_DENIED,
+                () -> bookingService.handleBookingJobDenied(event.getRequestId(), event.getEventId())
+        );
     }
 
     private void handleCancelBookingError(String payload) throws Exception {
@@ -110,9 +122,12 @@ public class BookingEventListener {
                 CancelBookingJobByRequestIdRequest.class
         );
 
-        log.debug("Команда отмены из DLQ: requestId={}", command.getRequestId());
+        log.debug("Команда отмены из DLQ: eventId={},requestId={}", command.getEventId(), command.getRequestId());
 
-        bookingService.handleError(command.getRequestId());
+        runIdempotent(
+                command.getEventId(),
+                ProcessedEventType.CANCEL_BOOKING_ERROR,
+                () -> bookingService.handleError(command.getRequestId(), command.getEventId()));
     }
 
     /**
@@ -120,5 +135,24 @@ public class BookingEventListener {
      */
     private boolean isMessageType(String actualType, String expectedType) {
         return actualType != null && actualType.contains(expectedType.split(",")[0].trim());
+    }
+    private void runIdempotent(UUID eventId, ProcessedEventType eventType, Runnable action) {
+        try {
+            action.run();
+        } catch (DataIntegrityViolationException ex) {
+
+            if (processedEventService.isProcessed(eventType, eventId)) {
+                log.info(
+                        "Событие уже обработано конкурентным экземпляром: eventId={}",
+                        eventId
+                );
+                return;
+            }
+
+            log.info(
+                    "Событие уже обработано конкурентным экземпляром: eventId={}",
+                    eventId
+            );
+        }
     }
 }
