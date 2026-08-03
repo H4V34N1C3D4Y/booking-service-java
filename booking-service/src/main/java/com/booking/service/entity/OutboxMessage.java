@@ -22,7 +22,7 @@ public class OutboxMessage {
     @Column(name = "message_type", nullable = false)
     private String messageType;
 
-    @Column(name = "payload", nullable = false)
+    @Column(name = "payload", nullable = false, columnDefinition = "TEXT")
     private String payload;
 
     @Enumerated(EnumType.STRING)

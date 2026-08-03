@@ -9,7 +9,6 @@ import com.booking.service.repository.OutboxMessageRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -30,11 +29,18 @@ public class OutboxPublisherJob {
     @Value("${booking.outbox.max-attempts:3}")
     private int maxAttempts;
 
+    @Value("${booking.outbox.batch-size:100}")
+    private int batchSize;
+
     @Scheduled(fixedDelayString = "${booking.outbox.interval}")
     @Transactional
     public void publishMessages() {
 
-        List<OutboxMessage> messages = repository.findTop100ByStatusOrderByCreatedAtAsc(OutboxMessageStatus.NEW);
+        List<OutboxMessage> messages =
+                repository.findForPublishing(
+                        OutboxMessageStatus.NEW.name(),
+                        batchSize
+                );
 
         if (messages.isEmpty()) {
             return;
@@ -55,14 +61,7 @@ public class OutboxPublisherJob {
                 log.info("Outbox сообщение отправлено: eventId={}", message.getEventId());
 
             } catch (Exception ex) {
-
-                String error = ExceptionUtils.getRootCauseMessage(ex);
-
-                if (error.length() > 1000) {
-                    error = error.substring(0, 1000);
-                }
-
-                message.registerFailure(error);
+                message.registerFailure(buildErrorMessage(ex));
 
                 if (message.getAttempts() >= maxAttempts) {
                     message.markAsFailed();
@@ -75,5 +74,17 @@ public class OutboxPublisherJob {
                 );
             }
         }
+    }
+
+    private String buildErrorMessage(Exception ex) {
+        String error = ex.getMessage();
+
+        if (error == null) {
+            error = ex.getClass().getSimpleName();
+        }
+
+        return error.length() > 1000
+                ? error.substring(0, 1000)
+                : error;
     }
 }

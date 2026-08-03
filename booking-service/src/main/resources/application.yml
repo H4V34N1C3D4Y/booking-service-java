@@ -56,3 +56,4 @@ booking:
   outbox:
     interval: 5000
     max-attempts: 5
+    batch-size: 100
