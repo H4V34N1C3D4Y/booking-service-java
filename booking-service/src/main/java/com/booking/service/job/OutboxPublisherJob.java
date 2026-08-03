@@ -1,4 +1,4 @@
-package com.booking.service.service;
+package com.booking.service.job;
 
 import com.booking.service.config.CurrentDateTimeProvider;
 import com.booking.service.entity.OutboxMessage;
@@ -9,14 +9,15 @@ import com.booking.service.repository.OutboxMessageRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
+@Component
 @RequiredArgsConstructor
 @Slf4j
 public class OutboxPublisherJob {
@@ -26,7 +27,7 @@ public class OutboxPublisherJob {
     private final ObjectMapper objectMapper;
     private final CurrentDateTimeProvider dateTimeProvider;
 
-    @Value("${booking.outbox.max-attempts}")
+    @Value("${booking.outbox.max-attempts:3}")
     private int maxAttempts;
 
     @Scheduled(fixedDelayString = "${booking.outbox.interval}")
@@ -55,7 +56,17 @@ public class OutboxPublisherJob {
 
             } catch (Exception ex) {
 
-                message.incrementAttempts(maxAttempts);
+                String error = ExceptionUtils.getRootCauseMessage(ex);
+
+                if (error.length() > 1000) {
+                    error = error.substring(0, 1000);
+                }
+
+                message.registerFailure(error);
+
+                if (message.getAttempts() >= maxAttempts) {
+                    message.markAsFailed();
+                }
 
                 log.warn("Не удалось отправить outbox сообщение: eventId={}, attempt={}",
                         message.getEventId(),

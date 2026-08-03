@@ -146,7 +146,7 @@
             <column name="message_type" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="payload" type="JSONB">
+            <column name="payload" type="TEXT">
                 <constraints nullable="false"/>
             </column>
             <column name="status" type="VARCHAR(30)">
@@ -156,10 +156,11 @@
                     defaultValueNumeric="0">
                 <constraints nullable="false"/>
             </column>
-            <column name="created_at" type="TIMESTAMP">
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
                 <constraints nullable="false"/>
             </column>
-            <column name="sent_at" type="TIMESTAMP"/>
+            <column name="sent_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="last_error" type="TEXT"/>
         </createTable>
 
         <createIndex

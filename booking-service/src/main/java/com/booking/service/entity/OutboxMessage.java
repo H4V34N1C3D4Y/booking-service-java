@@ -38,6 +38,9 @@ public class OutboxMessage {
     @Column(name = "sent_at")
     private OffsetDateTime sentAt;
 
+    @Column(name = "last_error")
+    private String lastError;
+
     public static OutboxMessage create(
             UUID eventId,
             String messageType,
@@ -59,13 +62,15 @@ public class OutboxMessage {
     public void markAsSent(OffsetDateTime sentAt) {
         this.status = OutboxMessageStatus.SENT;
         this.sentAt = sentAt;
+        this.lastError = null;
     }
 
-    public void incrementAttempts(int maxAttempts) {
+    public void registerFailure(String error) {
         this.attempts++;
+        this.lastError = error;
+    }
 
-        if (attempts >= maxAttempts) {
-            this.status = OutboxMessageStatus.FAILED;
-        }
+    public void markAsFailed() {
+        this.status = OutboxMessageStatus.FAILED;
     }
 }

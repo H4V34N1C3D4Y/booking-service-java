@@ -192,12 +192,17 @@ public class BookingService {
         }
 
         BookingStatus previousStatus = booking.getStatus();
+        BookingHistoryReason reason =
+                previousStatus == BookingStatus.CANCELLATION_PENDING
+                        ? BookingHistoryReason.RACE_CONDITION
+                        : BookingHistoryReason.BOOKING_CONFIRMED;
+
         booking.confirm();
 
         saveBookingHistoryAndOutbox(
                 booking,
                 previousStatus,
-                BookingHistoryReason.RACE_CONDITION,
+                reason,
                 "System"
         );
 
