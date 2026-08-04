@@ -57,3 +57,10 @@ booking:
     interval: 5000
     max-attempts: 5
     batch-size: 100
+
+notification:
+  url: http://notification-mock:8080
+
+  retry:
+    max-attempts: 3
+    delay: 1000

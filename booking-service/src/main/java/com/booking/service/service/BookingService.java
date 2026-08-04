@@ -11,6 +11,8 @@ import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import com.booking.service.messaging.listener.BookingEventPublisher;
+import com.booking.service.notificaton.NotificationClient;
+import com.booking.service.notificaton.contracts.NotificationRequest;
 import com.booking.service.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ public class BookingService {
     private final BookingHistoryService bookingHistoryService;
     private final ProcessedEventService processedEventService;
     private final OutboxService outboxService;
+    private final NotificationClient notificationClient;
 
     // === КОМАНДЫ (Use Cases) ===
 
@@ -339,6 +342,29 @@ public class BookingService {
                 now,
                 reason
         ));
+
+        notifyBookingStatusChanged(booking, now);
+    }
+
+    private void notifyBookingStatusChanged(
+            Booking booking,
+            OffsetDateTime changedAt
+    ) {
+        notificationClient.send(
+                NotificationRequest.from(
+                        booking,
+                        changedAt,
+                        buildNotificationMessage(booking.getStatus())
+                )
+        );
+    }
+
+    private String buildNotificationMessage(BookingStatus status) {
+        return switch (status) {
+            case CONFIRMED -> "Бронирование подтверждено";
+            case CANCELLED -> "Бронирование отменено";
+            default -> "Статус бронирования изменён";
+        };
     }
 
     @Transactional(readOnly = true)

@@ -107,4 +107,21 @@ class RepositoryIndexesIntegrationTest extends AbstractIntegrationTest {
         assertThat(found).isPresent();
         assertThat(found.get().getEventId()).isEqualTo(eventId);
     }
+
+    @Test
+    void shouldCreateUniqueIndexForCatalogRequestId() {
+
+        String indexDefinition = jdbcTemplate.queryForObject(
+                """
+                SELECT indexdef
+                FROM pg_indexes
+                WHERE indexname = 'uk_bookings_catalog_request_id'
+                """,
+                String.class
+        );
+
+        assertThat(indexDefinition)
+                .isNotNull()
+                .containsIgnoringCase("unique");
+    }
 }

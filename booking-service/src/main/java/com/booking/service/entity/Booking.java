@@ -13,7 +13,19 @@ import java.util.UUID;
  * JPA Entity для бронирования с инкапсулированной бизнес-логикой
  */
 @Entity
-@Table(name = "bookings")
+@Table(
+        name = "bookings",
+        indexes = {
+                @Index(name = "idx_bookings_status", columnList = "status"),
+                @Index(name = "idx_bookings_user_id", columnList = "user_id"),
+                @Index(name = "idx_bookings_resource_id", columnList = "resource_id"),
+                @Index(name = "idx_bookings_created_at", columnList = "created_at"),
+                @Index(
+                        name = "idx_bookings_status_cancellation_requested_at",
+                        columnList = "status,cancellation_requested_at"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor
 public class Booking {

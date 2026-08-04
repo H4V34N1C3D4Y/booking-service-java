@@ -84,3 +84,10 @@ spring:
             producer:
               exchange-type: topic
               routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"
+
+notification:
+  url: http://localhost:9000
+
+  retry:
+    max-attempts: 3
+    delay: 1000

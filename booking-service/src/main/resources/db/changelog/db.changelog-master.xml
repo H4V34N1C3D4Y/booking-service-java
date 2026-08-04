@@ -32,10 +32,6 @@
             </column>
             <column name="catalog_request_id" type="UUID"/>
         </createTable>
-        <addUniqueConstraint
-                tableName="bookings"
-                columnNames="catalog_request_id"
-                constraintName="uk_bookings_catalog_request_id"/>
         <createIndex indexName="idx_bookings_status" tableName="bookings">
             <column name="status"/>
         </createIndex>
@@ -197,7 +193,25 @@
             <column name="cancellation_requested_at"/>
 
         </createIndex>
+        <addUniqueConstraint
+                tableName="bookings"
+                columnNames="catalog_request_id"
+                constraintName="uk_bookings_catalog_request_id"/>
 
+        <rollback>
+            <dropUniqueConstraint
+                    tableName="outbox_messages"
+                    constraintName="uk_outbox_messages_event_id"/>
+            <dropUniqueConstraint
+                    tableName="bookings"
+                    constraintName="uk_bookings_catalog_request_id"/>
+            <dropIndex
+                    tableName="bookings"
+                    indexName="idx_bookings_status_cancellation_requested_at"/>
+            <dropIndex
+                    tableName="bookings"
+                    indexName="idx_bookings_created_at"/>
+        </rollback>
     </changeSet>
 
 </databaseChangeLog>

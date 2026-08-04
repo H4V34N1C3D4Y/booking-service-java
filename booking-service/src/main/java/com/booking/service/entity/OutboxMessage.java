@@ -8,7 +8,15 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "outbox_messages")
+@Table(
+        name = "outbox_messages",
+        indexes = {
+                @Index(
+                        name = "idx_outbox_status_created_at",
+                        columnList = "status,created_at"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor
 public class OutboxMessage {
