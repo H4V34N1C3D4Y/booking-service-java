@@ -1,6 +1,7 @@
 package com.booking.service.notification;
 
 import com.booking.service.notification.contracts.NotificationRequest;
+import com.booking.service.notification.exceptions.NotificationClientException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
@@ -8,9 +9,7 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import com.booking.service.notification.exceptions.NotificationClientException;
 import org.springframework.web.client.RestClientException;
 
 @Service

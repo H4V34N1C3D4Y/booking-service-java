@@ -96,7 +96,8 @@ public class BookingService {
                 .orElseThrow(() -> new BusinessException("Бронирование с указанным id: '" + id + "' не найдено."));
 
         BookingStatus previousStatus = booking.getStatus();
-        booking.startCancellation(dateTimeProvider.utcNow());
+        OffsetDateTime now = dateTimeProvider.utcNow();
+        booking.startCancellation(now);
 
         saveBookingHistoryAndOutbox(
                 booking,
@@ -104,6 +105,16 @@ public class BookingService {
                 BookingHistoryReason.USER_CANCELLATION_REQUEST,
                 "System"
         );
+
+
+        notificationClient.send(
+                NotificationRequest.from(
+                        booking,
+                        now,
+                        "Бронирование отменено"
+                )
+        );
+
 
         if (booking.getCatalogRequestId() != null) {
             CancelBookingJobByRequestIdRequest command = new CancelBookingJobByRequestIdRequest(
@@ -327,7 +338,7 @@ public class BookingService {
                 NotificationRequest.from(
                         booking,
                         dateTimeProvider.utcNow(),
-                        "Бронирование отменено"
+                        "Отмена бронирования не выполнена"
                 )
         );
 
