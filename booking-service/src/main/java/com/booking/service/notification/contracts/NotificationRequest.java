@@ -1,4 +1,4 @@
-package com.booking.service.notificaton.contracts;
+package com.booking.service.notification.contracts;
 
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;

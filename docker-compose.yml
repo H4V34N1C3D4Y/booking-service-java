@@ -109,7 +109,7 @@ services:
     ports:
       - "9000:8080"
     volumes:
-      - ./notification-mock/mappings:/home/wiremock/mappings
+      - ./docker-compose-mount/notification-mock/mappings:/home/wiremock/mappings
     command:
       - --global-response-templating
       - --verbose

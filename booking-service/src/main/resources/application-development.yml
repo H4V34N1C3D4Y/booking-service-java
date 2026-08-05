@@ -86,8 +86,9 @@ spring:
               routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"
 
 notification:
-  url: http://localhost:9000
+  url: http://localhost:8080
 
   retry:
     max-attempts: 3
     delay: 1000
+    multiplier: 2

@@ -1,6 +1,6 @@
-package com.booking.service.notificaton;
+package com.booking.service.notification;
 
-import com.booking.service.notificaton.contracts.NotificationRequest;
+import com.booking.service.notification.contracts.NotificationRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
@@ -8,10 +8,9 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
-import com.booking.service.notificaton.exceptions.NotificationClientException;
+import com.booking.service.notification.exceptions.NotificationClientException;
 import org.springframework.web.client.RestClientException;
 
 @Service
@@ -21,14 +20,12 @@ public class NotificationClient {
     private final RestClient restClient;
 
     @Retryable(
-            retryFor = {
-                    ResourceAccessException.class,
-                    RestClientException.class
-            },
+            retryFor = RestClientException.class,
             noRetryFor = NotificationClientException.class,
             maxAttemptsExpression = "#{@notificationProperties.retry.maxAttempts}",
             backoff = @Backoff(
-                    delayExpression = "#{@notificationProperties.retry.delay}"
+                    delayExpression = "#{@notificationProperties.retry.delay}",
+                    multiplierExpression = "#{@notificationProperties.retry.multiplier}"
             )
     )
     public void send(NotificationRequest request) {

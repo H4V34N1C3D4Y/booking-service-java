@@ -1,4 +1,4 @@
-package com.booking.service.notificaton.exceptions;
+package com.booking.service.notification.exceptions;
 
 public class NotificationClientException extends RuntimeException {
 

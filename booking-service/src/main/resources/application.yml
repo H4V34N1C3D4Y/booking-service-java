@@ -59,8 +59,9 @@ booking:
     batch-size: 100
 
 notification:
-  url: http://notification-mock:8080
+  url: http://notification-mock:9000
 
   retry:
     max-attempts: 3
     delay: 1000
+    multiplier: 2

@@ -11,8 +11,8 @@ import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import com.booking.service.messaging.listener.BookingEventPublisher;
-import com.booking.service.notificaton.NotificationClient;
-import com.booking.service.notificaton.contracts.NotificationRequest;
+import com.booking.service.notification.NotificationClient;
+import com.booking.service.notification.contracts.NotificationRequest;
 import com.booking.service.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -209,6 +209,14 @@ public class BookingService {
                 "System"
         );
 
+        notificationClient.send(
+                NotificationRequest.from(
+                        booking,
+                        dateTimeProvider.utcNow(),
+                        "Бронирование подтверждено"
+                )
+        );
+
         processedEventService.save(
                 eventId,
                 ProcessedEventType.BOOKING_JOB_CONFIRMED,
@@ -253,6 +261,14 @@ public class BookingService {
                 previousStatus,
                 BookingHistoryReason.BOOKING_DENIED,
                 "System"
+        );
+
+        notificationClient.send(
+                NotificationRequest.from(
+                        booking,
+                        now,
+                        "Бронирование отклонено"
+                )
         );
 
         processedEventService.save(
@@ -307,6 +323,14 @@ public class BookingService {
                 "System"
         );
 
+        notificationClient.send(
+                NotificationRequest.from(
+                        booking,
+                        dateTimeProvider.utcNow(),
+                        "Бронирование отменено"
+                )
+        );
+
         processedEventService.save(
                 eventId,
                 ProcessedEventType.CANCEL_BOOKING_ERROR,
@@ -342,8 +366,6 @@ public class BookingService {
                 now,
                 reason
         ));
-
-        notifyBookingStatusChanged(booking, now);
     }
 
     private void notifyBookingStatusChanged(
