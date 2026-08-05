@@ -103,6 +103,17 @@ services:
     volumes:
       - catalog-db-data:/data/postgres
 
+  notification-mock:
+    image: wiremock/wiremock:latest
+    container_name: notification-service-mock
+    ports:
+      - "9000:8080"
+    volumes:
+      - ./docker-compose-mount/notification-mock/mappings:/home/wiremock/mappings
+    command:
+      - --global-response-templating
+      - --verbose
+
 volumes:
   booking-db-data:
   catalog-db-data:

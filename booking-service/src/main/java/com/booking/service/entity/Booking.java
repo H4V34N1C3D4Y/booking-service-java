@@ -13,7 +13,19 @@ import java.util.UUID;
  * JPA Entity для бронирования с инкапсулированной бизнес-логикой
  */
 @Entity
-@Table(name = "bookings")
+@Table(
+        name = "bookings",
+        indexes = {
+                @Index(name = "idx_bookings_status", columnList = "status"),
+                @Index(name = "idx_bookings_user_id", columnList = "user_id"),
+                @Index(name = "idx_bookings_resource_id", columnList = "resource_id"),
+                @Index(name = "idx_bookings_created_at", columnList = "created_at"),
+                @Index(
+                        name = "idx_bookings_status_cancellation_requested_at",
+                        columnList = "status,cancellation_requested_at"
+                )
+        }
+)
 @Getter
 @NoArgsConstructor
 public class Booking {
@@ -43,6 +55,13 @@ public class Booking {
 
     @Column(name = "catalog_request_id")
     private UUID catalogRequestId;
+
+    @Enumerated(EnumType.ORDINAL)
+    @Column(name = "previous_status")
+    private BookingStatus previousStatus;
+
+    @Column(name = "cancellation_requested_at")
+    private OffsetDateTime cancellationRequestedAt;
 
     /**
      * Factory method для создания нового бронирования с валидацией бизнес-правил
@@ -90,9 +109,21 @@ public class Booking {
      * Подтвердить бронирование (переход из AwaitConfirmation в Confirmed)
      */
     public void confirm() {
-        if (status != BookingStatus.AWAIT_CONFIRMATION) {
-            throw new BusinessException("Статус заявки некорректен, заявка должна быть в статусе " + BookingStatus.AWAIT_CONFIRMATION);
+        switch(status){
+            case AWAIT_CONFIRMATION : break;
+
+            case CANCELLATION_PENDING : {
+                this.cancellationRequestedAt = null;
+                this.previousStatus = null;
+                break;
+            }
+
+            default : throw new BusinessException(
+                    "Статус заявки некорректен, заявка должна быть в статусе " + BookingStatus.AWAIT_CONFIRMATION.name() +
+                            " или " + BookingStatus.CANCELLATION_PENDING.name()
+            );
         }
+
         this.status = BookingStatus.CONFIRMED;
     }
 
@@ -102,19 +133,70 @@ public class Booking {
     public void cancel(LocalDate currentDate) {
         switch (status) {
             case AWAIT_CONFIRMATION:
-                this.status = BookingStatus.CANCELLED;
+                status = BookingStatus.CANCELLED;
                 break;
+
             case CONFIRMED:
-                if (currentDate.isBefore(bookedFrom)) {
-                    this.status = BookingStatus.CANCELLED;
-                } else {
+                if (!currentDate.isBefore(bookedFrom)) {
                     throw new BusinessException("Невозможно отменить начавшееся бронирование");
                 }
+
+                status = BookingStatus.CANCELLED;
                 break;
-            case NONE:
-            case CANCELLED:
+
             default:
                 throw new BusinessException("Некорректный статус для отмены");
         }
+    }
+
+    public void startCancellation(OffsetDateTime sentAt) {
+        LocalDate currentDate = sentAt.toLocalDate();
+
+        switch (status) {
+            case AWAIT_CONFIRMATION:
+                processCancellation(sentAt);
+                break;
+
+            case CONFIRMED:
+                if (!currentDate.isBefore(bookedFrom)) {
+                    throw new BusinessException("Невозможно отменить начавшееся бронирование");
+                }
+
+                processCancellation(sentAt);
+                break;
+
+            default:
+                throw new BusinessException("Некорректный статус для отмены");
+        }
+    }
+
+    private void processCancellation(OffsetDateTime sentAt) {
+        this.previousStatus = this.status;
+        this.status = BookingStatus.CANCELLATION_PENDING;
+        this.cancellationRequestedAt = sentAt;
+    }
+
+    public void completeCancellation() {
+        if (status != BookingStatus.CANCELLATION_PENDING) {
+            throw new BusinessException("Невозможно завершить отмену");
+        }
+
+        previousStatus = null;
+        cancellationRequestedAt = null;
+        this.status = BookingStatus.CANCELLED;
+    }
+
+    public void rollbackCancellation() {
+        if (status != BookingStatus.CANCELLATION_PENDING) {
+            throw new BusinessException("Невозможно откатить отмену");
+        }
+
+        if (previousStatus == null) {
+            throw new BusinessException("Предыдущий статус отсутствует");
+        }
+
+        this.status = previousStatus;
+        this.previousStatus = null;
+        this.cancellationRequestedAt = null;
     }
 }

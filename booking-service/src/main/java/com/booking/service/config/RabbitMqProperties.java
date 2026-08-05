@@ -55,6 +55,9 @@ public class RabbitMqProperties {
         private String cancelBookingJob =
             "BookingService.Catalog.Async.Api.Contracts.Requests.CancelBookingJobByRequestIdRequest, BookingService.Catalog.Async.Api.Contracts";
 
+        private String bookingStatusChanged =
+                "BookingService.Booking.Events.BookingStatusChangedEvent, BookingService.Booking.Events";
+
         /**
          * События (входящие)
          */
