@@ -16,6 +16,8 @@ import com.booking.service.notification.contracts.BookingNotificationEvent;
 import com.booking.service.notification.contracts.NotificationRequest;
 import com.booking.service.notification.contracts.StatisticsCacheEvictEvent;
 import com.booking.service.repository.BookingRepository;
+import com.booking.service.service.cache.CacheNames;
+import com.booking.service.service.cache.StatisticsCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -297,6 +299,8 @@ public class BookingService {
                 "System"
         );
 
+        applicationEventPublisher.publishEvent(new StatisticsCacheEvictEvent());
+
         applicationEventPublisher.publishEvent(
                 new BookingNotificationEvent(
                         NotificationRequest.from(
@@ -412,7 +416,7 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     @Cacheable(
-            value = "statistics",
+            value = CacheNames.STATISTICS,
             key = "#dateFrom + ':' + #dateTo"
     )
     public BookingStatsResponse getStatistics(

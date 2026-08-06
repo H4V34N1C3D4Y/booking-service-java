@@ -1,6 +1,7 @@
 package com.booking.service.service;
 
 import com.booking.service.notification.contracts.StatisticsCacheEvictEvent;
+import com.booking.service.service.cache.StatisticsCacheService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
