@@ -87,8 +87,15 @@ spring:
 
 notification:
   url: http://localhost:9000
+  connect-timeout: 3s
+  read-timeout: 3s
 
   retry:
     max-attempts: 3
     delay: 1000
     multiplier: 2
+
+cache:
+  statistics:
+    ttl: 10m
+    maximum-size: 100

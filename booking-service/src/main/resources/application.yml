@@ -60,8 +60,15 @@ booking:
 
 notification:
   url: http://notification-mock:8080
+  connect-timeout: 3s
+  read-timeout: 3s
 
   retry:
     max-attempts: 3
     delay: 1000
     multiplier: 2
+
+cache:
+  statistics:
+    ttl: 10m
+    maximum-size: 100

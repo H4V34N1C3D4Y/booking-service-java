@@ -12,10 +12,13 @@ import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdReques
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import com.booking.service.messaging.listener.BookingEventPublisher;
 import com.booking.service.notification.NotificationClient;
+import com.booking.service.notification.contracts.BookingNotificationEvent;
 import com.booking.service.notification.contracts.NotificationRequest;
 import com.booking.service.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,9 @@ public class BookingService {
     private final ProcessedEventService processedEventService;
     private final OutboxService outboxService;
     private final NotificationClient notificationClient;
+    private final ApplicationEventPublisher applicationEventPublisher;
+
+    private final StatisticsCacheService statisticsCacheService;
 
     // === КОМАНДЫ (Use Cases) ===
 
@@ -69,6 +75,8 @@ public class BookingService {
                 BookingHistoryReason.BOOKING_CREATED,
                 "System"
         );
+
+        statisticsCacheService.evictStatisticsCache();
 
         CreateBookingJobRequest command = new CreateBookingJobRequest(
                 UUID.randomUUID(),
@@ -106,12 +114,16 @@ public class BookingService {
                 "System"
         );
 
+        statisticsCacheService.evictStatisticsCache();
 
-        notificationClient.send(
-                NotificationRequest.from(
-                        booking,
-                        now,
-                        "Бронирование отменено"
+
+        applicationEventPublisher.publishEvent(
+                new BookingNotificationEvent(
+                        NotificationRequest.from(
+                                booking,
+                                now,
+                                "Запрос на отмену принят"
+                        )
                 )
         );
 
@@ -220,11 +232,15 @@ public class BookingService {
                 "System"
         );
 
-        notificationClient.send(
-                NotificationRequest.from(
-                        booking,
-                        dateTimeProvider.utcNow(),
-                        "Бронирование подтверждено"
+        statisticsCacheService.evictStatisticsCache();
+
+        applicationEventPublisher.publishEvent(
+                new BookingNotificationEvent(
+                        NotificationRequest.from(
+                                booking,
+                                dateTimeProvider.utcNow(),
+                                "Бронирование подтверждено"
+                        )
                 )
         );
 
@@ -274,11 +290,13 @@ public class BookingService {
                 "System"
         );
 
-        notificationClient.send(
-                NotificationRequest.from(
-                        booking,
-                        now,
-                        "Бронирование отклонено"
+        applicationEventPublisher.publishEvent(
+                new BookingNotificationEvent(
+                        NotificationRequest.from(
+                                booking,
+                                now,
+                                "Бронирование отклонено"
+                        )
                 )
         );
 
@@ -334,11 +352,13 @@ public class BookingService {
                 "System"
         );
 
-        notificationClient.send(
-                NotificationRequest.from(
-                        booking,
-                        dateTimeProvider.utcNow(),
-                        "Отмена бронирования не выполнена"
+        applicationEventPublisher.publishEvent(
+                new BookingNotificationEvent(
+                        NotificationRequest.from(
+                                booking,
+                                dateTimeProvider.utcNow(),
+                                "Отмена бронирования не выполнена"
+                        )
                 )
         );
 
@@ -379,28 +399,11 @@ public class BookingService {
         ));
     }
 
-    private void notifyBookingStatusChanged(
-            Booking booking,
-            OffsetDateTime changedAt
-    ) {
-        notificationClient.send(
-                NotificationRequest.from(
-                        booking,
-                        changedAt,
-                        buildNotificationMessage(booking.getStatus())
-                )
-        );
-    }
-
-    private String buildNotificationMessage(BookingStatus status) {
-        return switch (status) {
-            case CONFIRMED -> "Бронирование подтверждено";
-            case CANCELLED -> "Бронирование отменено";
-            default -> "Статус бронирования изменён";
-        };
-    }
-
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "statistics",
+            key = "#from.toString() + ':' + #to.toString()"
+    )
     public BookingStatsResponse getStatistics(
             LocalDate dateFrom,
             LocalDate dateTo

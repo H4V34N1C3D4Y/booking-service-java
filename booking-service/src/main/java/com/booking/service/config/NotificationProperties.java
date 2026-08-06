@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+
 @Component
 @ConfigurationProperties(prefix = "notification")
 @Getter
@@ -14,6 +16,8 @@ public class NotificationProperties {
     private String url;
 
     private Retry retry = new Retry();
+    private Duration connectTimeout = Duration.ofSeconds(3);
+    private Duration readTimeout = Duration.ofSeconds(3);
 
     @Getter
     @Setter
