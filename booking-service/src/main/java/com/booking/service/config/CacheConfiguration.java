@@ -31,4 +31,3 @@ public class CacheConfiguration {
         return manager;
     }
 }
-
