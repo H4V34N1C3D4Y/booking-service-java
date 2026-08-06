@@ -14,6 +14,7 @@ import com.booking.service.messaging.listener.BookingEventPublisher;
 import com.booking.service.notification.NotificationClient;
 import com.booking.service.notification.contracts.BookingNotificationEvent;
 import com.booking.service.notification.contracts.NotificationRequest;
+import com.booking.service.notification.contracts.StatisticsCacheEvictEvent;
 import com.booking.service.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -76,7 +77,9 @@ public class BookingService {
                 "System"
         );
 
-        statisticsCacheService.evictStatisticsCache();
+        applicationEventPublisher.publishEvent(
+                new StatisticsCacheEvictEvent()
+        );
 
         CreateBookingJobRequest command = new CreateBookingJobRequest(
                 UUID.randomUUID(),
@@ -114,7 +117,9 @@ public class BookingService {
                 "System"
         );
 
-        statisticsCacheService.evictStatisticsCache();
+        applicationEventPublisher.publishEvent(
+                new StatisticsCacheEvictEvent()
+        );
 
 
         applicationEventPublisher.publishEvent(
@@ -232,7 +237,9 @@ public class BookingService {
                 "System"
         );
 
-        statisticsCacheService.evictStatisticsCache();
+        applicationEventPublisher.publishEvent(
+                new StatisticsCacheEvictEvent()
+        );
 
         applicationEventPublisher.publishEvent(
                 new BookingNotificationEvent(
@@ -353,6 +360,10 @@ public class BookingService {
         );
 
         applicationEventPublisher.publishEvent(
+                new StatisticsCacheEvictEvent()
+        );
+
+        applicationEventPublisher.publishEvent(
                 new BookingNotificationEvent(
                         NotificationRequest.from(
                                 booking,
@@ -402,13 +413,12 @@ public class BookingService {
     @Transactional(readOnly = true)
     @Cacheable(
             value = "statistics",
-            key = "#from.toString() + ':' + #to.toString()"
+            key = "#dateFrom + ':' + #dateTo"
     )
     public BookingStatsResponse getStatistics(
             LocalDate dateFrom,
             LocalDate dateTo
     ) {
-        validateDateRange(dateFrom, dateTo);
 
         OffsetDateTime from = dateFrom
                 .atStartOfDay()
@@ -455,7 +465,7 @@ public class BookingService {
         );
     }
 
-    private void validateDateRange(
+    public void validateDateRange(
             LocalDate dateFrom,
             LocalDate dateTo
     ) {

@@ -92,6 +92,7 @@ public class BookingController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo
     ){
+        bookingService.validateDateRange(dateFrom, dateTo);
         return bookingService.getStatistics(dateFrom, dateTo);
     }
 
