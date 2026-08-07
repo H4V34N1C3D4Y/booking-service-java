@@ -2,16 +2,24 @@ package com.booking.service.controller;
 
 import com.booking.service.dto.request.CreateBookingRequest;
 import com.booking.service.dto.request.GetBookingsByFilterRequest;
+import com.booking.service.dto.response.BookingHistoryPageResponse;
+import com.booking.service.dto.response.BookingHistoryResponse;
 import com.booking.service.dto.response.BookingResponse;
+import com.booking.service.dto.response.BookingStatsResponse;
 import com.booking.service.entity.Booking;
+import com.booking.service.entity.BookingHistory;
 import com.booking.service.entity.BookingStatus;
+import com.booking.service.service.BookingHistoryService;
 import com.booking.service.service.BookingService;
+import com.booking.service.service.mapper.BookingHistoryMapper;
 import com.booking.service.service.mapper.BookingMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -23,7 +31,11 @@ import java.util.List;
 public class BookingController {
 
     private final BookingService bookingService;
-    private final BookingMapper mapper;
+    private final BookingMapper bookingMapper;
+
+    private final BookingHistoryService bookingHistoryService;
+
+    private final BookingHistoryMapper bookingHistoryMapper;
 
     /**
      * Создать новое бронирование
@@ -40,7 +52,7 @@ public class BookingController {
     @GetMapping("{id}")
     public BookingResponse getById(@PathVariable Long id) {
         var booking = bookingService.getById(id);
-        return mapper.toResponse(booking);
+        return bookingMapper.toResponse(booking);
     }
 
     /**
@@ -56,7 +68,7 @@ public class BookingController {
                 request.pageSize()
         );
 
-        return bookings.stream().map(mapper::toResponse).toList();
+        return bookings.stream().map(bookingMapper::toResponse).toList();
     }
 
     /**
@@ -73,5 +85,32 @@ public class BookingController {
     @PostMapping("{id}/cancel")
     public void cancel(@PathVariable Long id) {
         bookingService.cancelBooking(id);
+    }
+
+    @GetMapping("/statistics")
+    public BookingStatsResponse getStatistics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo
+    ){
+        bookingService.validateDateRange(dateFrom, dateTo);
+        return bookingService.getStatistics(dateFrom, dateTo);
+    }
+
+    @GetMapping("{id}/history")
+    public BookingHistoryPageResponse getHistory(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ){
+        Page<BookingHistory> history = bookingHistoryService.getHistory(id, page, size);
+
+        return new BookingHistoryPageResponse(
+                id,
+                history.getTotalElements(),
+                history.getContent()
+                        .stream()
+                        .map(bookingHistoryMapper::toResponse)
+                        .toList()
+        );
     }
 }

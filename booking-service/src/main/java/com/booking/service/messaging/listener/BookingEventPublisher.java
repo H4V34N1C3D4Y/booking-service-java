@@ -1,6 +1,7 @@
 package com.booking.service.messaging.listener;
 
 import com.booking.service.config.RabbitMqProperties;
+import com.booking.service.messaging.contracts.BookingStatusChangedEvent;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import lombok.RequiredArgsConstructor;
@@ -78,5 +79,28 @@ public class BookingEventPublisher {
                 .setHeader(HEADER_INTENT, rabbitMqProperties.getIntent())
                 .setHeader(HEADER_SENDER_ADDRESS, rabbitMqProperties.getSenderAddress())
                 .build();
+    }
+
+    public void publishBookingStatusChanged(BookingStatusChangedEvent event) {
+        log.info(
+                "Публикация события BookingStatusChanged: eventId={}, bookingId={}, {} -> {}",
+                event.getEventId(),
+                event.getBookingId(),
+                event.getPreviousStatus(),
+                event.getNewStatus()
+        );
+
+        Message<BookingStatusChangedEvent> message = buildRebusMessage(
+                event,
+                rabbitMqProperties.getMessageTypes().getBookingStatusChanged()
+        );
+
+        streamBridge.send("bookingStatusChanged-out-0", message);
+
+        log.info(
+                "Событие BookingStatusChanged отправлено в RabbitMQ: eventId={}, bookingId={}",
+                event.getEventId(),
+                event.getBookingId()
+        );
     }
 }
