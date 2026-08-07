@@ -9,4 +9,3 @@ public class StatisticsCacheService {
     public void evictStatisticsCache() {
     }
 }
-
